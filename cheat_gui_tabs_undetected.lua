@@ -1,14 +1,15 @@
 --[[
-Cheat Roblox com Menu por Abas - Aimbot + ESP + Perfil
+Cheat Roblox com Menu por Abas - Aimbot + ESP
 Compatível com Ronix
 --]]
+
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UIS = game:GetService("UserInputService")
 local Camera = workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
 
--- Configurações
+-- Configurações iniciais
 local config = {
     Aimbot = false,
     AimbotMobile = false,
@@ -44,38 +45,6 @@ Title.TextColor3 = Color3.fromRGB(255, 0, 140)
 Title.Font = Enum.Font.GothamBold
 Title.TextScaled = true
 
--- Perfil do usuário
-local function setupUserProfile()
-    local count = LocalPlayer:GetAttribute("MenuLogins") or 0
-    count += 1
-    LocalPlayer:SetAttribute("MenuLogins", count)
-
-    local Profile = Instance.new("Frame", Main)
-    Profile.Size = UDim2.new(0, 180, 0, 60)
-    Profile.Position = UDim2.new(1, -190, 0, 10)
-    Profile.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-    Instance.new("UICorner", Profile).CornerRadius = UDim.new(0, 6)
-
-    local nameLabel = Instance.new("TextLabel", Profile)
-    nameLabel.Size = UDim2.new(1, -10, 0.5, 0)
-    nameLabel.Position = UDim2.new(0, 5, 0, 5)
-    nameLabel.Text = "👤 "..LocalPlayer.Name
-    nameLabel.TextColor3 = Color3.fromRGB(0, 255, 140)
-    nameLabel.Font = Enum.Font.GothamBold
-    nameLabel.TextScaled = true
-    nameLabel.BackgroundTransparency = 1
-
-    local loginLabel = Instance.new("TextLabel", Profile)
-    loginLabel.Size = UDim2.new(1, -10, 0.5, -5)
-    loginLabel.Position = UDim2.new(0, 5, 0.5, 0)
-    loginLabel.Text = "🔁 Acessos: "..tostring(count)
-    loginLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-    loginLabel.Font = Enum.Font.Gotham
-    loginLabel.TextScaled = true
-    loginLabel.BackgroundTransparency = 1
-end
-setupUserProfile()
-
 -- Abas
 local Tabs = Instance.new("Frame", Main)
 Tabs.Size = UDim2.new(1, -20, 0, 40)
@@ -99,7 +68,6 @@ local AimbotTabBtn = createTabButton("Aimbot", 0)
 local ESPTabBtn = createTabButton("ESP", 1/3)
 local OtherTabBtn = createTabButton("Outros", 2/3)
 
--- Conteúdo das abas
 local TabsContent = {}
 for _, name in ipairs({"Aimbot", "ESP", "Outros"}) do
     local frame = Instance.new("Frame", Main)
@@ -137,13 +105,16 @@ local function updateTabs(active)
     end
 end
 AimbotTabBtn.MouseButton1Click:Connect(function()
-    showTab("Aimbot"); updateTabs(AimbotTabBtn)
+    showTab("Aimbot")
+    updateTabs(AimbotTabBtn)
 end)
 ESPTabBtn.MouseButton1Click:Connect(function()
-    showTab("ESP"); updateTabs(ESPTabBtn)
+    showTab("ESP")
+    updateTabs(ESPTabBtn)
 end)
 OtherTabBtn.MouseButton1Click:Connect(function()
-    showTab("Outros"); updateTabs(OtherTabBtn)
+    showTab("Outros")
+    updateTabs(OtherTabBtn)
 end)
 updateTabs(AimbotTabBtn)
 
@@ -203,144 +174,15 @@ createToggle(ot,"Exemplo 1","Example1")
 createToggle(ot,"Exemplo 2","Example2")
 
 -- FOV e Aimbot
-local FOVCircle = Drawing.new("Circle"); FOVCircle.Thickness=2; FOVCircle.Filled=false; FOVCircle.Color=Color3.new(1,1,0); FOVCircle.Transparency=0.5; FOVCircle.Visible=false
+local FOVCircle = Drawing.new("Circle")
+FOVCircle.Thickness=2
+FOVCircle.Filled=false
+FOVCircle.Color=Color3.new(1,1,0)
+FOVCircle.Transparency=0.5
+FOVCircle.Visible=false
 
-local function getClosest(isM)
-    local c, d = nil, config.FOVRadius
-    local mp = isM and Vector2.new(Camera.ViewportSize.X/2,Camera.ViewportSize.Y/2) or UIS:GetMouseLocation()
-    for _,p in pairs(Players:GetPlayers()) do
-        if p~=LocalPlayer and p.Character and p.Character:FindFirstChild("Head") then
-            if config.TeamCheck and p.Team==LocalPlayer.Team then continue end
-            local pos, on = Camera:WorldToViewportPoint(p.Character.Head.Position)
-            if on then local m=(Vector2.new(pos.X,pos.Y)-mp).Magnitude
-                if m<d then c, d = p, m end
-            end
-        end
-    end
-    return c
-end
-
-RunService.RenderStepped:Connect(function()
-    local mobileEnv = UIS.TouchEnabled and config.AimbotMobile
-    local showFOV = (config.Aimbot and not mobileEnv) or (mobileEnv and config.ShowFOVMobile)
-    FOVCircle.Visible=showFOV
-    FOVCircle.Position=mobileEnv and Vector2.new(Camera.ViewportSize.X/2,Camera.ViewportSize.Y/2) or UIS:GetMouseLocation()
-    FOVCircle.Radius=config.FOVRadius
-
-    if (config.Aimbot and not mobileEnv) or mobileEnv then
-        local t = getClosest(mobileEnv)
-        if t and t.Character and t.Character:FindFirstChild("Head") then
-            local hp = t.Character.Head.Position
-            local dir=(hp-Camera.CFrame.Position).Unit
-            Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position,Camera.CFrame.Position+dir),config.Smoothness)
-        end
-    end
-end)
-
--- ESP com Drawing API
-local ESPObjs = {}
-local function clearESP(p)
-    if ESPObjs[p] then
-        for _,o in pairs(ESPObjs[p]) do
-            if o.Remove then o:Remove() else o:Destroy() end
-        end
-        ESPObjs[p]=nil
-    end
-end
-
-local function createESP(p)
-    ESPObjs[p]={}
-    local con
-    con=RunService.RenderStepped:Connect(function()
-        if not config.ESP or not p.Character or not p.Character:FindFirstChild("Head") then
-            clearESP(p); con:Disconnect(); return
-        end
-        local head=p.Character.Head; local hrp=p.Character:FindFirstChild("HumanoidRootPart"); local hum=p.Character:FindFirstChildOfClass("Humanoid")
-        if not head or not hrp or not hum then return end
-        local hPos,onH=Camera:WorldToViewportPoint(head.Position)
-        local rPos,onR=Camera:WorldToViewportPoint(hrp.Position)
-        if not onH or not onR then clearESP(p); return end
-        local root2d=Vector2.new(rPos.X,rPos.Y)
-        local hgt=(hPos-rPos).Magnitude*1.5; local wdt=hgt*0.5
-
-        if config.ESP_Name then
-            local t=ESPObjs[p].Name or Drawing.new("Text")
-            t.Text=p.Name; t.Position=Vector2.new(hPos.X,hPos.Y-15)
-            t.Size=14; t.Color=Color3.fromRGB(0,255,140); t.Center=true; t.Outline=true; t.Visible=true
-            ESPObjs[p].Name=t
-        end
-        if config.ESP_HeadDot then
-            local d=ESPObjs[p].Dot or Drawing.new("Circle")
-            d.Position=Vector2.new(hPos.X,hPos.Y); d.Radius=4; d.Color=Color3.fromRGB(255,0,0); d.Filled=true; d.Visible=true
-            ESPObjs[p].Dot=d
-        end
-        if config.ESP_Box then
-            local b=ESPObjs[p].Box or Drawing.new("Square")
-            b.Position=Vector2.new(root2d.X-wdt/2,root2d.Y-hgt/2); b.Size=Vector2.new(wdt,hgt)
-            b.Color=Color3.fromRGB(255,255,0); b.Thickness=1; b.Visible=true
-            ESPObjs[p].Box=b
-        end
-        if config.ESP_Tracer then
-            local l=ESPObjs[p].Tracer or Drawing.new("Line")
-            l.From=Vector2.new(Camera.ViewportSize.X/2,Camera.ViewportSize.Y)
-            l.To=root2d; l.Color=Color3.fromRGB(200,200,200); l.Thickness=1; l.Visible=true
-            ESPObjs[p].Tracer=l
-        end
-        if config.ESP_Health then
-            local hpt=ESPObjs[p].HP or Drawing.new("Text")
-            hpt.Text="HP:"..math.floor(hum.Health)
-            hpt.Position=Vector2.new(root2d.X,root2d.Y+hgt/2+10)
-            hpt.Size=13; hpt.Color=Color3.fromRGB(0,255,0)
-            hpt.Center=true; hpt.Outline=true; hpt.Visible=true
-            ESPObjs[p].HP=hpt
-        end
-    end)
-end
-
-Players.PlayerAdded:Connect(function(pl)
-    if pl~=LocalPlayer then createESP(pl) end
-end)
-for _,pl in pairs(Players:GetPlayers()) do
-    if pl~=LocalPlayer then createESP(pl) end
-end
-
--- Toggle de menu
-UIS.InputBegan:Connect(function(i, gp)
-    if i.KeyCode==config.ToggleKey and not gp then
-        Main.Visible = not Main.Visible
-    end
-end)
-
--- Botão flutuante
-local fb = Instance.new("Frame", ScreenGui)
-fb.Size=UDim2.new(0,50,0,50); fb.Position=UDim2.new(0,20,0,20)
-fb.BackgroundColor3 = selectedColor; Instance.new("UICorner", fb).CornerRadius=UDim.new(1,0)
-fb.ZIndex = 10
-local icon = Instance.new("TextLabel", fb)
-icon.Size=UDim2.new(1,1,0,0); icon.BackgroundTransparency=1
-icon.Text="⚙️"; icon.Font=Enum.Font.GothamBold; icon.TextScaled=true; icon.TextColor3=Color3.new(1,1,1)
-
-local dragging, dragInp, dragStart, stPos = false, nil, nil, fb.Position
-fb.InputBegan:Connect(function(i)
-    if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then
-        dragging=false; dragStart=i.Position; stPos=fb.Position
-        i.Changed:Connect(function()
-            if i.UserInputState==Enum.UserInputState.End and not dragging then
-                Main.Visible = not Main.Visible
-            end
-        end)
-    end
-end)
-fb.InputChanged:Connect(function(i)
-    if i.UserInputType==Enum.UserInputType.MouseMovement or i.UserInputType==Enum.UserInputType.Touch then dragInp=i end
-end)
-UIS.InputChanged:Connect(function(i)
-    if i==dragInp then
-        dragging=true
-        local delta = i.Position - dragStart
-        fb.Position = UDim2.new(
-            0, math.clamp(stPos.X.Offset+delta.X, 0, Camera.ViewportSize.X - 50),
-            0, math.clamp(stPos.Y.Offset+delta.Y, 0, Camera.ViewportSize.Y - 50)
-        )
-    end
-end)
+local function getClosest(isMobile)
+    local closestPlayer = nil
+    local closestDistance = config.FOVRadius
+    local mousePos = isMobile and Vector2.new(Camera.ViewportSize.X
+        
