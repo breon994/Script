@@ -15,6 +15,8 @@ local config = {
     Aimbot = false,
     AimbotMobile = false,
     ESP = false,
+    TeamCheck = true,            -- Toggle para checagem de time
+    ShowFOVMobile = false,       -- Toggle para mostrar FOV no mobile
     FOVRadius = 120,
     Smoothness = 0.2,
     ToggleKey = Enum.KeyCode.RightShift
@@ -105,62 +107,79 @@ local function createToggle(parent, text, var)
         config[var] = not config[var]
         Btn.Text = text .. ": " .. (config[var] and "ON" or "OFF")
     end)
+    return Btn
 end
 
--- FOV Slider
-local FOVLabel = Instance.new("TextLabel", TabsContent["Aimbot"])
-FOVLabel.Size = UDim2.new(1, 0, 0, 20)
-FOVLabel.Text = "FOV Radius: " .. config.FOVRadius
-FOVLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-FOVLabel.Font = Enum.Font.Gotham
-FOVLabel.TextScaled = true
-FOVLabel.BackgroundTransparency = 1
+-- Criar Slider
+local function createSlider(parent, text, var, min, max)
+    local label = Instance.new("TextLabel", parent)
+    label.Size = UDim2.new(1, 0, 0, 20)
+    label.Text = text .. ": " .. config[var]
+    label.TextColor3 = Color3.fromRGB(255, 255, 255)
+    label.Font = Enum.Font.Gotham
+    label.TextScaled = true
+    label.BackgroundTransparency = 1
 
-local SliderFrame = Instance.new("Frame", TabsContent["Aimbot"])
-SliderFrame.Size = UDim2.new(1, 0, 0, 10)
-SliderFrame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-Instance.new("UICorner", SliderFrame).CornerRadius = UDim.new(0, 4)
+    local sliderFrame = Instance.new("Frame", parent)
+    sliderFrame.Size = UDim2.new(1, 0, 0, 10)
+    sliderFrame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    Instance.new("UICorner", sliderFrame).CornerRadius = UDim.new(0, 4)
 
-local Knob = Instance.new("Frame", SliderFrame)
-Knob.Size = UDim2.new(0, 10, 1, 0)
-Knob.Position = UDim2.new(config.FOVRadius / 300, -5, 0, 0)
-Knob.BackgroundColor3 = Color3.fromRGB(0, 255, 140)
-Instance.new("UICorner", Knob).CornerRadius = UDim.new(1, 0)
+    local knob = Instance.new("Frame", sliderFrame)
+    knob.Size = UDim2.new(0, 10, 1, 0)
+    knob.Position = UDim2.new((config[var] - min) / (max - min), -5, 0, 0)
+    knob.BackgroundColor3 = Color3.fromRGB(0, 255, 140)
+    Instance.new("UICorner", knob).CornerRadius = UDim.new(1, 0)
 
-local dragging = false
-Knob.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = true end
-end)
-Knob.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
-end)
-UIS.InputChanged:Connect(function(input)
-    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-        local rel = math.clamp((input.Position.X - SliderFrame.AbsolutePosition.X) / SliderFrame.AbsoluteSize.X, 0, 1)
-        config.FOVRadius = math.floor(rel * 300)
-        Knob.Position = UDim2.new(rel, -5, 0, 0)
-        FOVLabel.Text = "FOV Radius: " .. config.FOVRadius
-    end
-end)
+    local dragging = false
+    knob.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = true end
+    end)
+    knob.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
+    end)
+    UIS.InputChanged:Connect(function(input)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local rel = math.clamp((input.Position.X - sliderFrame.AbsolutePosition.X) / sliderFrame.AbsoluteSize.X, 0, 1)
+            config[var] = math.floor(min + rel * (max - min))
+            knob.Position = UDim2.new(rel, -5, 0, 0)
+            label.Text = text .. ": " .. config[var]
+        end
+    end)
 
--- Toggles
+    return label, knob
+end
+
+-- Adicionando toggles na aba Aimbot
 createToggle(TabsContent["Aimbot"], "Aimbot (PC)", "Aimbot")
 createToggle(TabsContent["Aimbot"], "Aimbot (Mobile)", "AimbotMobile")
+createToggle(TabsContent["Aimbot"], "Team Check", "TeamCheck")
+createToggle(TabsContent["Aimbot"], "Mostrar FOV Mobile", "ShowFOVMobile")
+
+-- Slider de FOV (0 a 360)
+createSlider(TabsContent["Aimbot"], "FOV Radius", "FOVRadius", 0, 360)
+
+-- Toggle ESP na aba ESP
 createToggle(TabsContent["ESP"], "ESP Ativo", "ESP")
 
--- FOV Visual
+-- Círculo de FOV para desenhar na tela
 local FOVCircle = Drawing.new("Circle")
 FOVCircle.Thickness = 2
 FOVCircle.Filled = false
 FOVCircle.Color = Color3.new(1, 1, 0)
 FOVCircle.Transparency = 0.5
 
--- Encontre inimigo
+-- Função para encontrar o inimigo mais próximo dentro do FOV
 local function getClosest(isMobile)
     local closest, dist = nil, config.FOVRadius
-    local mousePos = isMobile and Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2) or UIS:GetMouseLocation()
+    local mousePos = isMobile and Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2) or UIS:GetMouseLocation()
     for _, plr in pairs(Players:GetPlayers()) do
-        if plr ~= LocalPlayer and plr.Team ~= LocalPlayer.Team and plr.Character and plr.Character:FindFirstChild("Head") then
+        if plr ~= LocalPlayer and plr.Character and plr.Character:FindFirstChild("Head") then
+            if config.TeamCheck and plr.Team == LocalPlayer.Team then
+                -- Ignorar se TeamCheck ativo e estiver no mesmo time
+                continue
+            end
+
             local pos, onScreen = Camera:WorldToViewportPoint(plr.Character.Head.Position)
             if onScreen then
                 local mag = (Vector2.new(pos.X, pos.Y) - mousePos).Magnitude
@@ -174,10 +193,11 @@ local function getClosest(isMobile)
     return closest
 end
 
--- Loop principal
+-- Loop principal do aimbot e desenho do FOV
 RunService.RenderStepped:Connect(function()
-    FOVCircle.Visible = config.Aimbot or config.AimbotMobile
-    FOVCircle.Position = UIS:GetMouseLocation()
+    local shouldShowFOV = (config.Aimbot and not config.AimbotMobile) or (config.AimbotMobile and config.ShowFOVMobile)
+    FOVCircle.Visible = shouldShowFOV
+    FOVCircle.Position = config.AimbotMobile and Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2) or UIS:GetMouseLocation()
     FOVCircle.Radius = config.FOVRadius
 
     if config.Aimbot or config.AimbotMobile then
@@ -225,7 +245,7 @@ for _, plr in pairs(Players:GetPlayers()) do
     end
 end
 
--- Tecla para abrir menu
+-- Toggle para abrir/fechar menu
 UIS.InputBegan:Connect(function(input, gpe)
     if input.KeyCode == config.ToggleKey then
         Main.Visible = not Main.Visible
