@@ -1,0 +1,2 @@
+# Script
+Script aimbot etc 
