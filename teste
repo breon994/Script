@@ -1,5 +1,3 @@
--- ✅ GUI + Aimbot + ESP + FOV Slider + Minimizar – compatível com Ronix/mobile
-
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Camera = workspace.CurrentCamera
@@ -10,7 +8,8 @@ local settings = {
     esp = false,
     ignoreTeam = true,
     fov = 150,
-    showFOV = false
+    showFOV = false,
+    aimPart = "Head"
 }
 
 -- GUI
@@ -19,7 +18,7 @@ gui.ResetOnSpawn = false
 gui.Name = "TestMenu"
 
 local frame = Instance.new("Frame", gui)
-frame.Size = UDim2.new(0, 230, 0, 250)
+frame.Size = UDim2.new(0, 230, 0, 400)
 frame.Position = UDim2.new(0, 20, 0.3, 0)
 frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 frame.Active = true
@@ -33,9 +32,8 @@ title.TextColor3 = Color3.new(1, 1, 1)
 title.Font = Enum.Font.GothamBold
 title.TextSize = 16
 title.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-title.Name = "TitleBar"
 
--- Minimizar botão
+-- Minimizar
 local minimize = Instance.new("TextButton", frame)
 minimize.Size = UDim2.new(0, 30, 0, 30)
 minimize.Position = UDim2.new(1, -30, 0, 0)
@@ -45,8 +43,53 @@ minimize.TextSize = 20
 minimize.TextColor3 = Color3.new(1, 1, 1)
 minimize.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
 
--- Botão criador
+-- Bolinha flutuante
+local floatingBall = Instance.new("TextButton", gui)
+floatingBall.Size = UDim2.new(0, 40, 0, 40)
+floatingBall.Position = UDim2.new(0, 20, 0.8, 0)
+floatingBall.Text = "☰"
+floatingBall.Font = Enum.Font.GothamBold
+floatingBall.TextSize = 20
+floatingBall.TextColor3 = Color3.new(1, 1, 1)
+floatingBall.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+floatingBall.Visible = false
+
+local minimized = false
 local buttons = {}
+local aimPartButtons = {}
+
+local function setMinimized(state)
+    minimized = state
+    frame.Visible = not state
+    floatingBall.Visible = state
+    for _, b in ipairs(buttons) do b.Visible = not state end
+    for _, b in ipairs(aimPartButtons) do b.Visible = not state and settings.aimbot end
+    fovLabel.Visible = not state
+    fovSlider.Visible = not state
+end
+
+minimize.MouseButton1Click:Connect(function()
+    setMinimized(true)
+end)
+
+floatingBall.MouseButton1Click:Connect(function()
+    setMinimized(false)
+end)
+
+-- Criar separador de seção
+local function createLabel(text, y)
+    local lbl = Instance.new("TextLabel", frame)
+    lbl.Size = UDim2.new(0.9, 0, 0, 20)
+    lbl.Position = UDim2.new(0.05, 0, 0, y)
+    lbl.Text = text
+    lbl.Font = Enum.Font.GothamBold
+    lbl.TextSize = 14
+    lbl.TextColor3 = Color3.fromRGB(200, 200, 200)
+    lbl.BackgroundTransparency = 1
+    return lbl
+end
+
+-- Criar botão
 local function createButton(label, y, callback)
     local btn = Instance.new("TextButton", frame)
     btn.Size = UDim2.new(0.9, 0, 0, 30)
@@ -56,7 +99,6 @@ local function createButton(label, y, callback)
     btn.TextSize = 14
     btn.TextColor3 = Color3.new(1, 1, 1)
     btn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-    btn.Name = label:gsub(" ", "_")
     btn.MouseButton1Click:Connect(function()
         callback(btn)
     end)
@@ -64,78 +106,114 @@ local function createButton(label, y, callback)
     return btn
 end
 
--- Botões
-createButton("Aimbot: OFF", 35, function(btn)
+local yPos = 35
+
+-- Seção Aimbot
+createLabel("AIMBOT", yPos)
+yPos += 25
+createButton("Aimbot: OFF", yPos, function(btn)
     settings.aimbot = not settings.aimbot
     btn.Text = "Aimbot: " .. (settings.aimbot and "ON" or "OFF")
+    for _, b in ipairs(aimPartButtons) do
+        b.Visible = settings.aimbot and not minimized
+    end
 end)
+yPos += 35
 
-createButton("ESP: OFF", 70, function(btn)
+-- Seção ESP
+createLabel("ESP", yPos)
+yPos += 25
+createButton("ESP: OFF", yPos, function(btn)
     settings.esp = not settings.esp
     btn.Text = "ESP: " .. (settings.esp and "ON" or "OFF")
 end)
+yPos += 35
 
-createButton("Ignorar Time: ON", 105, function(btn)
+-- Seção Configurações
+createLabel("CONFIGURAÇÕES", yPos)
+yPos += 25
+createButton("Ignorar Time: ON", yPos, function(btn)
     settings.ignoreTeam = not settings.ignoreTeam
     btn.Text = "Ignorar Time: " .. (settings.ignoreTeam and "ON" or "OFF")
 end)
+yPos += 35
 
-createButton("Mostrar FOV: OFF", 140, function(btn)
+createButton("Mostrar FOV: OFF", yPos, function(btn)
     settings.showFOV = not settings.showFOV
     btn.Text = "Mostrar FOV: " .. (settings.showFOV and "ON" or "OFF")
 end)
+yPos += 35
 
--- FOV Slider
-local fovLabel = Instance.new("TextLabel", frame)
+-- FOV Label
+fovLabel = Instance.new("TextLabel", frame)
 fovLabel.Size = UDim2.new(0.9, 0, 0, 20)
-fovLabel.Position = UDim2.new(0.05, 0, 0, 175)
+fovLabel.Position = UDim2.new(0.05, 0, 0, yPos)
 fovLabel.Text = "FOV: 150"
 fovLabel.TextColor3 = Color3.new(1, 1, 1)
 fovLabel.Font = Enum.Font.Gotham
 fovLabel.TextSize = 14
 fovLabel.BackgroundTransparency = 1
+yPos += 25
 
-local fovSlider = Instance.new("TextButton", frame)
+-- FOV Slider
+fovSlider = Instance.new("TextButton", frame)
 fovSlider.Size = UDim2.new(0.9, 0, 0, 20)
-fovSlider.Position = UDim2.new(0.05, 0, 0, 200)
+fovSlider.Position = UDim2.new(0.05, 0, 0, yPos)
 fovSlider.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
 fovSlider.Text = ""
 local dragging = false
+yPos += 30
 
 fovSlider.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
         dragging = true
     end
 end)
 
 fovSlider.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = false
-    end
+    dragging = false
 end)
 
-game:GetService("UserInputService").InputChanged:Connect(function(input)
+RunService.RenderStepped:Connect(function()
     if dragging then
-        local x = math.clamp(input.Position.X - fovSlider.AbsolutePosition.X, 0, fovSlider.AbsoluteSize.X)
+        local touchPos = fovSlider.AbsolutePosition.X
+        local mouse = LocalPlayer:GetMouse()
+        local x = math.clamp(mouse.X - touchPos, 0, fovSlider.AbsoluteSize.X)
         local percent = x / fovSlider.AbsoluteSize.X
         settings.fov = math.floor(50 + percent * 300)
         fovLabel.Text = "FOV: " .. tostring(settings.fov)
     end
 end)
 
--- Minimizar lógica
-local minimized = false
-minimize.MouseButton1Click:Connect(function()
-    minimized = not minimized
-    for _, b in ipairs(buttons) do b.Visible = not minimized end
-    fovLabel.Visible = not minimized
-    fovSlider.Visible = not minimized
-    minimize.Text = minimized and "☰" or "−"
-end)
+-- Seção de partes do Aimbot
+createLabel("PARTES PARA MIRAR", yPos)
+yPos += 25
+
+local function createAimPartButton(text, partName, y)
+    local btn = Instance.new("TextButton", frame)
+    btn.Size = UDim2.new(0.9, 0, 0, 25)
+    btn.Position = UDim2.new(0.05, 0, 0, y)
+    btn.Text = text
+    btn.Font = Enum.Font.Gotham
+    btn.TextSize = 14
+    btn.TextColor3 = Color3.new(1, 1, 1)
+    btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    btn.Visible = false
+    btn.MouseButton1Click:Connect(function()
+        settings.aimPart = partName
+    end)
+    table.insert(aimPartButtons, btn)
+end
+
+createAimPartButton("Grudar na Cabeça", "Head", yPos)
+yPos += 30
+createAimPartButton("Grudar no Pescoço", "UpperTorso", yPos)
+yPos += 30
+createAimPartButton("Grudar no Peito", "HumanoidRootPart", yPos)
 
 -- ESP
 function createESP(player)
-    local hrp = player.Character:FindFirstChild("HumanoidRootPart")
+    local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
     if not hrp or hrp:FindFirstChild("ESPBox") then return end
     local box = Instance.new("BoxHandleAdornment")
     box.Name = "ESPBox"
@@ -144,6 +222,7 @@ function createESP(player)
     box.Color3 = Color3.fromRGB(255, 0, 0)
     box.AlwaysOnTop = true
     box.Transparency = 0.5
+    box.ZIndex = 10
     box.Parent = hrp
 end
 
@@ -161,9 +240,9 @@ function getClosest()
     local shortest = math.huge
     local target = nil
     for _, p in ipairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("Head") then
+        if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild(settings.aimPart) then
             if settings.ignoreTeam and p.Team == LocalPlayer.Team then continue end
-            local pos, visible = Camera:WorldToViewportPoint(p.Character.Head.Position)
+            local pos, visible = Camera:WorldToViewportPoint(p.Character[settings.aimPart].Position)
             if visible then
                 local dist = (Vector2.new(pos.X, pos.Y) - Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)).Magnitude
                 if dist < settings.fov and dist < shortest then
@@ -190,21 +269,11 @@ RunService.RenderStepped:Connect(function()
 
     if settings.aimbot then
         local target = getClosest()
-        if target and target.Character and target.Character:FindFirstChild("Head") then
-            Camera.CFrame = CFrame.new(Camera.CFrame.Position, target.Character.Head.Position)
+        if target and target.Character and target.Character:FindFirstChild(settings.aimPart) then
+            local partPos = target.Character[settings.aimPart].Position
+            local camPos = Camera.CFrame.Position
+            local newCF = CFrame.new(camPos, partPos)
+            Camera.CFrame = newCF
         end
     end
-end)
-
--- FOV visual
-local circle = Drawing.new("Circle")
-circle.Thickness = 1
-circle.Transparency = 1
-circle.Color = Color3.fromRGB(0, 255, 0)
-circle.Filled = false
-
-RunService.RenderStepped:Connect(function()
-    circle.Radius = settings.fov
-    circle.Visible = settings.showFOV
-    circle.Position = game:GetService("UserInputService"):GetMouseLocation()
 end)
