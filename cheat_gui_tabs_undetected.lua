@@ -32,6 +32,7 @@ Main.Position = UDim2.new(0.5, -200, 0.5, -175)
 Main.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 Main.BorderSizePixel = 0
 Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 8)
+Main.Visible = false -- começa oculto
 
 -- Título
 local Title = Instance.new("TextLabel", Main)
@@ -162,12 +163,17 @@ createSlider(TabsContent["Aimbot"], "FOV Radius", "FOVRadius", 0, 360)
 -- Toggle ESP na aba ESP
 createToggle(TabsContent["ESP"], "ESP Ativo", "ESP")
 
+-- Toggle outros (exemplo placeholders)
+createToggle(TabsContent["Outros"], "Exemplo 1", "Example1") -- criar exemplo pra testar, pode ser removido
+createToggle(TabsContent["Outros"], "Exemplo 2", "Example2")
+
 -- Círculo de FOV para desenhar na tela
 local FOVCircle = Drawing.new("Circle")
 FOVCircle.Thickness = 2
 FOVCircle.Filled = false
 FOVCircle.Color = Color3.new(1, 1, 0)
 FOVCircle.Transparency = 0.5
+FOVCircle.Visible = false
 
 -- Função para encontrar o inimigo mais próximo dentro do FOV
 local function getClosest(isMobile)
@@ -217,6 +223,7 @@ local function createESP(plr)
     bb.Name = "ESP_" .. plr.Name
     bb.Size = UDim2.new(0, 100, 0, 20)
     bb.AlwaysOnTop = true
+    bb.Adornee = nil
 
     local text = Instance.new("TextLabel", bb)
     text.Size = UDim2.new(1, 0, 1, 0)
@@ -226,16 +233,18 @@ local function createESP(plr)
     text.Text = plr.Name
     text.Font = Enum.Font.GothamBold
 
-    coroutine.wrap(function()
-        while plr and plr.Parent and config.ESP do
-            if plr.Character and plr.Character:FindFirstChild("Head") then
-                bb.Adornee = plr.Character.Head
-                bb.Parent = plr.Character.Head
-            end
-            wait(1)
+    local conn
+    conn = RunService.Heartbeat:Connect(function()
+        if not plr or not plr.Character or not plr.Character:FindFirstChild("Head") or not config.ESP then
+            bb:Destroy()
+            conn:Disconnect()
+            return
         end
-        bb:Destroy()
-    end)()
+        bb.Adornee = plr.Character.Head
+        if not bb.Parent then
+            bb.Parent = plr.Character.Head
+        end
+    end)
 end
 
 Players.PlayerAdded:Connect(createESP)
@@ -245,9 +254,67 @@ for _, plr in pairs(Players:GetPlayers()) do
     end
 end
 
--- Toggle para abrir/fechar menu
+-- Toggle para abrir/fechar menu com tecla
 UIS.InputBegan:Connect(function(input, gpe)
-    if input.KeyCode == config.ToggleKey then
+    if input.KeyCode == config.ToggleKey and not gpe then
         Main.Visible = not Main.Visible
+    end
+end)
+
+-- Bolinha flutuante
+local floatBtn = Instance.new("Frame", ScreenGui)
+floatBtn.Size = UDim2.new(0, 50, 0, 50)
+floatBtn.Position = UDim2.new(0, 20, 0, 20)
+floatBtn.BackgroundColor3 = Color3.fromRGB(0, 255, 140)
+floatBtn.BorderSizePixel = 0
+floatBtn.ZIndex = 10
+floatBtn.AnchorPoint = Vector2.new(0, 0)
+Instance.new("UICorner", floatBtn).CornerRadius = UDim.new(1, 0)
+
+local icon = Instance.new("TextLabel", floatBtn)
+icon.Size = UDim2.new(1, 0, 1, 0)
+icon.BackgroundTransparency = 1
+icon.Text = "⚙️"
+icon.TextScaled = true
+icon.TextColor3 = Color3.new(1, 1, 1)
+icon.Font = Enum.Font.GothamBold
+
+local dragging = false
+local dragInput, dragStart, startPos
+
+floatBtn.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = false
+        dragStart = input.Position
+        startPos = floatBtn.Position
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                if not dragging then
+                    -- Clique simples: alternar menu
+                    Main.Visible = not Main.Visible
+                end
+                dragging = false
+            end
+        end)
+    end
+end)
+
+floatBtn.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        dragInput = input
+    end
+end)
+
+UIS.InputChanged:Connect(function(input)
+    if input == dragInput and (floatBtn:IsDescendantOf(ScreenGui)) then
+        dragging = true
+        local delta = input.Position - dragStart
+        local newPos = UDim2.new(
+            math.clamp(startPos.X.Scale, 0, 1),
+            math.clamp(startPos.X.Offset + delta.X, 0, workspace.CurrentCamera.ViewportSize.X - floatBtn.AbsoluteSize.X),
+            math.clamp(startPos.Y.Scale, 0, 1),
+            math.clamp(startPos.Y.Offset + delta.Y, 0, workspace.CurrentCamera.ViewportSize.Y - floatBtn.AbsoluteSize.Y)
+        )
+        floatBtn.Position = newPos
     end
 end)
