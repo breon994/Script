@@ -1,0 +1,110 @@
+-- ⚠️ GUI + Aimbot + ESP – Ronix Executor (Testes Anti-Cheat Autorizado)
+
+loadstring((function()
+    local Players = game:GetService("Players")
+    local RunService = game:GetService("RunService")
+    local Camera = workspace.CurrentCamera
+    local LocalPlayer = Players.LocalPlayer
+
+    local settings = {
+        aimbot = false,
+        esp = false,
+        ignoreTeam = true,
+        fov = 150
+    }
+
+    local gui = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
+    gui.ResetOnSpawn = false
+    gui.Name = "TestMenu"
+
+    local frame = Instance.new("Frame", gui)
+    frame.Size = UDim2.new(0, 220, 0, 180)
+    frame.Position = UDim2.new(0, 20, 0.3, 0)
+    frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    frame.Active = true
+    frame.Draggable = true
+
+    local title = Instance.new("TextLabel", frame)
+    title.Size = UDim2.new(1, 0, 0, 30)
+    title.Text = "Menu Teste (Load)"
+    title.TextColor3 = Color3.new(1, 1, 1)
+    title.Font = Enum.Font.GothamBold
+    title.TextSize = 16
+    title.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+
+    local function createButton(label, y, callback)
+        local btn = Instance.new("TextButton", frame)
+        btn.Size = UDim2.new(0.9, 0, 0, 35)
+        btn.Position = UDim2.new(0.05, 0, 0, y)
+        btn.Text = label
+        btn.Font = Enum.Font.Gotham
+        btn.TextSize = 14
+        btn.TextColor3 = Color3.new(1, 1, 1)
+        btn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+        btn.MouseButton1Click:Connect(function()
+            callback(btn)
+        end)
+    end
+
+    createButton("Aimbot: OFF", 40, function(btn)
+        settings.aimbot = not settings.aimbot
+        btn.Text = "Aimbot: " .. (settings.aimbot and "ON" or "OFF")
+    end)
+
+    createButton("ESP: OFF", 80, function(btn)
+        settings.esp = not settings.esp
+        btn.Text = "ESP: " .. (settings.esp and "ON" or "OFF")
+        if settings.esp then
+            for _, p in ipairs(Players:GetPlayers()) do
+                if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                    if not settings.ignoreTeam or p.Team ~= LocalPlayer.Team then
+                        local hrp = p.Character.HumanoidRootPart
+                        if not hrp:FindFirstChild("ESPBox") then
+                            local box = Instance.new("BoxHandleAdornment")
+                            box.Name = "ESPBox"
+                            box.Adornee = hrp
+                            box.Size = Vector3.new(3, 5, 1)
+                            box.Color3 = Color3.fromRGB(255, 0, 0)
+                            box.AlwaysOnTop = true
+                            box.Transparency = 0.5
+                            box.Parent = hrp
+                        end
+                    end
+                end
+            end
+        end
+    end)
+
+    createButton("Ignorar Time: ON", 120, function(btn)
+        settings.ignoreTeam = not settings.ignoreTeam
+        btn.Text = "Ignorar Time: " .. (settings.ignoreTeam and "ON" or "OFF")
+    end)
+
+    local function getClosest()
+        local shortest = math.huge
+        local target = nil
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Head") then
+                if settings.ignoreTeam and player.Team == LocalPlayer.Team then continue end
+                local pos, vis = Camera:WorldToViewportPoint(player.Character.Head.Position)
+                if vis then
+                    local dist = (Vector2.new(pos.X, pos.Y) - Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)).Magnitude
+                    if dist < settings.fov and dist < shortest then
+                        shortest = dist
+                        target = player
+                    end
+                end
+            end
+        end
+        return target
+    end
+
+    RunService.RenderStepped:Connect(function()
+        if settings.aimbot then
+            local target = getClosest()
+            if target and target.Character and target.Character:FindFirstChild("Head") then
+                Camera.CFrame = CFrame.new(Camera.CFrame.Position, target.Character.Head.Position)
+            end
+        end
+    end)
+end)())
